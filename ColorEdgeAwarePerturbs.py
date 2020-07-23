@@ -12,7 +12,7 @@ def pert_lab(image, label, grad_fun, num_iter, eps, weight=None):
     outputs delta. A vector of shape image such that image + delta is the perturbed image.'''
     if weight is None:
         weight = 1
-    delta = torch.zeros(image.shape)
+    delta = torch.zeros(image.shape).to(image.device)
     for i in range(num_iter):
         grad = grad_fun(image + delta)
         delta += weight*eps*grad/torch.norm(grad, p=2, dim=1) #can be parallelized across pixels
@@ -36,7 +36,8 @@ def pert_rgb(image, label, model, num_iter, eps, targeted = False, weight=None, 
     else:
         grad_fun = lambda img: -grad_lab2lab(model, img, label, do_imagenet_scale=do_imagenet_scale)
     delta_lab = pert_lab(img_lab, label, grad_fun, num_iter, eps, weight=weight)
-    pert_img = torch.clamp(lab2rgb(img_lab + delta_lab), 0, 1)
+    with torch.no_grad():
+        pert_img = torch.clamp(lab2rgb(img_lab + delta_lab), 0, 1)
     return(pert_img)
 
 def grad_lab2lab(model, input_img, label, do_imagenet_scale=True):
@@ -51,7 +52,8 @@ def grad_lab2lab(model, input_img, label, do_imagenet_scale=True):
     if torch.is_tensor(label) is False:
         label = torch.tensor(label)
     if len(label.shape) == 0: #it's a scalar
-        label=label.unsqueeze(0)
+        label = label.unsqueeze(0)
+    label = label.to(input_img.device)
     img = input_img
     if len(img.shape) == 3:
         img = img.unsqueeze(0)
