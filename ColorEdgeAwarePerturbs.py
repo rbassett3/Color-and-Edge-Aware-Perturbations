@@ -12,10 +12,14 @@ def pert_lab(image, label, grad_fun, num_iter, eps, weight=None):
     outputs delta. A vector of shape image such that image + delta is the perturbed image.'''
     if weight is None:
         weight = 1
-    delta = torch.zeros(image.shape).to(image.device)
+    else:
+        weight = weight.to(image.device)
+    delta = torch.zeros(image.shape, device=image.device)
     for i in range(num_iter):
         grad = grad_fun(image + delta)
-        delta += weight*eps*grad/torch.norm(grad, p=2, dim=1) #can be parallelized across pixels
+        grad_norm = torch.norm(grad, p=2, dim=1)
+        delta = torch.where((grad_norm==0).repeat(1,3,1,1), delta, delta + weight*eps*grad/grad_norm)
+        #if norm is zero then don't divide by its norm.
     return delta
 
 def pert_rgb(image, label, model, num_iter, eps, targeted = False, weight=None, do_imagenet_scale=True):
@@ -69,11 +73,8 @@ def grad_lab2lab(model, input_img, label, do_imagenet_scale=True):
     return(img.grad)
 
 def imagenet_transform(img):
-    means = torch.tensor([0.229, 0.224, 0.225]).reshape(1,3,1,1)
-    sds = torch.tensor([0.485, 0.456, 0.406]).reshape(1,3,1,1)
-    if img.is_cuda:
-        means = means.cuda()
-        sds = sds.cuda()
+    means = torch.tensor([0.229, 0.224, 0.225], device=img.device).reshape(1,3,1,1)
+    sds = torch.tensor([0.485, 0.456, 0.406], device=img.device).reshape(1,3,1,1)
     return (img - means)/sds
 
 #source for these functions below (MIT License)
