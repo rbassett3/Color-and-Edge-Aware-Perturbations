@@ -22,7 +22,7 @@ def pert_lab(image, label, grad_fun, num_iter, eps, weight=None):
         #if norm is zero then don't divide by its norm.
     return delta
 
-def pert_rgb(image, label, model, num_iter, eps, targeted = False, weight=None, do_imagenet_scale=True):
+def pert_rgb(image, label, model, num_iter, eps, targeted = False, weight=None, do_imagenet_scale=True, binary=False):
     '''
     image is in RGB space and in [0,1]
     model maps rgb image to the logits
@@ -31,25 +31,30 @@ def pert_rgb(image, label, model, num_iter, eps, targeted = False, weight=None, 
     weight is a vector which determines the constaint in each pixel as eps*weight[i].
     should be of length image.flatten()/3, one for each pixel. This can be use for an edge filter.
     It can also be a scalar, but this is dumb and you should just put the weight into epsilon
-    outputs delta. A vector of shape image such that image + delta is the perturbed image.'''
+    outputs delta. A vector of shape image such that image + delta is the perturbed image.
+    do_imagenet_scale is a boolean indicating whether the typical scaling on imagenet images should be used
+    binary uses BCELossWithLogits instead of CrossEntropyLoss'''
     if len(image.shape) == 3:
         image = image.unsqueeze(0)
     img_lab = rgb2lab(image)
     if targeted == False:
-        grad_fun = lambda img: grad_lab2lab(model, img, label, do_imagenet_scale=do_imagenet_scale)
+        grad_fun = lambda img: grad_lab2lab(model, img, label, do_imagenet_scale=do_imagenet_scale, binary=binary)
     else:
-        grad_fun = lambda img: -grad_lab2lab(model, img, label, do_imagenet_scale=do_imagenet_scale)
+        grad_fun = lambda img: -grad_lab2lab(model, img, label, do_imagenet_scale=do_imagenet_scale, binary=binary)
     delta_lab = pert_lab(img_lab, label, grad_fun, num_iter, eps, weight=weight)
     with torch.no_grad():
         pert_img = torch.clamp(lab2rgb(img_lab + delta_lab), 0, 1)
     return(pert_img)
 
-def grad_lab2lab(model, input_img, label, do_imagenet_scale=True):
+def grad_lab2lab(model, input_img, label, do_imagenet_scale=True, binary=True):
     '''img assumed to be in [0,1].
     If the model uses the typical scaling of imagenet used in pytorch set do_imagenet_scale=True.
     See https://pytorch.org/docs/stable/torchvision/models.html'''
-    from torch.nn import CrossEntropyLoss
-    loss = CrossEntropyLoss()
+    from torch.nn import CrossEntropyLoss, BCEWithLogitsLoss
+    if binary:
+        loss = BCEWithLogitsLoss()
+    else:
+        loss = CrossEntropyLoss()
 
     model.eval() #make sure the model isn't in training mode
     #make sure the shapes work are 4D
@@ -68,7 +73,6 @@ def grad_lab2lab(model, input_img, label, do_imagenet_scale=True):
     else:
         scaled_img = rgb_img
     out = loss(model(scaled_img), label)
-    #out = loss(model(rgb_img), label)
     out.backward()
     return(img.grad)
 
