@@ -10,7 +10,7 @@ The image below compares our method to a multiple iteration version of the Fast 
 
 If you find our work useful, please cite the following paper, where you can also find more information on the methods we developed.
 
-Bassett, Robert and Graves, Mitchell. "Color and Edge-Aware Adversarial Image Perturbations." [arXiv preprint arXiv:2008.12454](http://arxiv.org/abs/2008.12454) (2020).
+Robert Bassett, Mitchell Graves, Patrick Reilly. "Color and Edge-Aware Adversarial Image Perturbations." [arXiv preprint arXiv:2008.12454](http://arxiv.org/abs/2008.12454) (2020).
 
 Further background information on the topic of adversarial perturbations can be found in the following MS thesis.
 
